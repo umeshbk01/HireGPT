@@ -50,38 +50,48 @@ async def search_linkedin_jobs(
         ))
     return jobs
 
-# async def search_indeed_jobs(
-#     query: str,
-#     location: str,
-#     limit: int = 10,
-#     offset: int = 0,
-# ) -> List[JobPosting]:
-#     url = f"https://{JSEARCH_API_HOST}/search"
-#     params = {
-#         "query": query,
-#         "location": location,
-#         "limit": limit,
-#         "offset": offset,
-#     }
-#     headers = {
-#         **HEADERS,
-#         "X-RapidAPI-Host": JSEARCH_API_HOST,
-#     }
-#     async with httpx.AsyncClient() as client:
-#         resp = await client.get(url, headers=headers, params=params)
-#         resp.raise_for_status()
-#         items = resp.json().get("data", [])
-#     jobs = []
-#     for item in items:
-#         jobs.append(JobPosting(
-#             title=item.get("job_title", ""),
-#             company=item.get("employer_name", ""),
-#             location=", ".join(filter(None, [item.get("job_city"), item.get("job_country")])),
-#             url=item.get("job_apply_link", item.get("job_link", "")),
-#             description=item.get("job_description", ""),
-#             source="Indeed",
-#         ))
-#     return jobs
+async def search_indeed_jobs(
+    query: str,
+    location: str,
+    limit: int = 10,
+    offset: int = 0,
+) -> List[JobPosting]:
+    url = f"https://{JSEARCH_API_HOST}/search"
+
+    # Map offset and limit to page/num_pages
+    # Each page = 10 results
+    page = (offset // 10) + 1
+    num_pages = (limit + 9) // 10  # ceil(limit / 10)
+
+    params = {
+        "query": f"{query} in {location}",
+        "page": str(page),
+        "num_pages": str(num_pages),
+        "country": "us",  # Optional, but recommended for clarity
+        "date_posted": "all"  # Can be "today", "3days", "week", "month"
+    }
+
+    headers = {
+        "x-rapidapi-key": RAPIDAPI_KEY,
+        "x-rapidapi-host": JSEARCH_API_HOST,
+    }
+    timeout = httpx.Timeout(25.0)  # 15 seconds total timeout
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        resp = await client.get(url, headers=headers, params=params)
+        resp.raise_for_status()
+        items = resp.json().get("data", [])
+
+    jobs = []
+    for item in items:
+        jobs.append(JobPosting(
+            title=item.get("job_title", ""),
+            company=item.get("employer_name", ""),
+            location=", ".join(filter(None, [item.get("job_city"), item.get("job_country")])),
+            url=item.get("job_apply_link") or item.get("job_link", ""),
+            description=item.get("job_description", ""),
+            source="Indeed",
+        ))
+    return jobs
 
 async def search_jobs(
     title: str,
@@ -91,7 +101,7 @@ async def search_jobs(
 ) -> List[JobPosting]:
     # Run both searches concurrently
     li_task = asyncio.create_task(search_linkedin_jobs(title, location, limit, offset))
-    # in_task = asyncio.create_task(search_indeed_jobs(title, location, limit, offset))
+    in_task = asyncio.create_task(search_indeed_jobs(title, location, limit, offset))
     linkedin = await li_task
-    # indeed = await in_task
-    return linkedin
+    indeed = await in_task
+    return linkedin + indeed

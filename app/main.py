@@ -1,9 +1,11 @@
 from fastapi import FastAPI
 from app.routers.jobs import router as jobs_router
+from app.routers.resume import router as resume_router
 
 app = FastAPI(title="AI Job Agent")
 
 app.include_router(jobs_router)
+app.include_router(resume_router)
 
 # Optional health check
 @app.get("/health")
