@@ -8,21 +8,33 @@ router = APIRouter(prefix="/resume", tags=["resume"])
 
 @router.post("/upload", response_model=ResumeProfile)
 async def upload_resume(file: UploadFile = File(...)):
-    # only accept PDF/DOCX for now
-    if file.content_type not in ("application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"):
-        raise HTTPException(status_code=400, detail="Unsupported file type. Please upload PDF or DOCX.")
+    # Accept only PDF or DOCX
+    if file.content_type not in (
+        "application/pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file type. Please upload PDF or DOCX."
+        )
+
     temp_dir = "temp"
     os.makedirs(temp_dir, exist_ok=True)
     file_path = os.path.join(temp_dir, file.filename)
-    # save file
+
+    # Save to temp
     with open(file_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
-    # parse
+
     try:
         profile = parse_resume(file_path)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to parse resume: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to parse resume: {e}"
+        )
     finally:
-        # clean up
+        # Cleanup
         os.remove(file_path)
+
     return profile

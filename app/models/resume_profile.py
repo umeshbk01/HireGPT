@@ -24,4 +24,3 @@ class ResumeProfile(BaseModel):
     skills: List[str]
     projects: Optional[List[str]] = []
     certifications: Optional[List[str]] = []
-    summary: Optional[str] = None
