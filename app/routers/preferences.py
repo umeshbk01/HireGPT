@@ -1,23 +1,18 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict
 from app.models.user_preferences import UserPreferences
+from app.routers.resume import get_current_user_id
 
 router = APIRouter(prefix="/preferences", tags=["preferences"])
 
-# For now, a simple in-memory store. Swap out for a DB later.
-_PREF_STORE: Dict[str, UserPreferences] = {}
-
-def get_current_user_id():
-    # Stub: replace with real auth dependency returning user's ID
-    return "user-1234"
+_PREF_STORE: dict[str, UserPreferences] = {}
 
 @router.post("/", response_model=UserPreferences, status_code=201)
 async def create_or_update_preferences(
     prefs: UserPreferences,
     user_id: str = Depends(get_current_user_id)
 ):
-    if prefs.user_id != user_id:
-        raise HTTPException(403, "Cannot set preferences for another user")
+    prefs.user_id = user_id
     _PREF_STORE[user_id] = prefs
     return prefs
 
